@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "PhishGuard",
+  "version": "0.6.0",
+  "description": "Deep Check queries VirusTotal, PhishStats, and urlscan.io.",
+  "action": {
+    "default_title": "PhishGuard",
+    "default_popup": "popup.html"
+  },
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "file://*/*",
+    "http://*/*",
+    "https://*/*",
+    "https://api.phishstats.info/*",
+    "https://cloudflare-dns.com/*",
+    "https://dns.google/*",
+    "https://ipapi.co/*",
+    "https://ipwho.is/*",
+    "https://urlscan.io/*",
+    "https://www.virustotal.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*",
+        "file://*/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "icons": {
+    "16": "assets/cyber.png",
+    "48": "assets/cyber.png",
+    "128": "assets/cyber.png"
+  }
+}

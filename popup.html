@@ -1,0 +1,156 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>PhishGuard</title>
+  <style>
+    :root{
+      --border:#cfcfcf;
+      --text:#111;
+      --muted:#444;
+      --bg:#fff;
+      --row:#f6f6f6;
+      --ok:#1b7f3a;
+      --warn:#b8860b;
+      --bad:#b00020;
+      --pill:#efefef;
+      --link:#0b57d0;
+    }
+    body{
+      margin:0;
+      padding:12px 12px 10px;
+      width:340px;
+      font-family: Inter, system-ui, Arial, Helvetica, sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+    .top{ text-align:center; padding:6px 6px 10px; }
+    .domain{
+      font-size:20px; font-weight:700; margin:2px 0 6px;
+      word-break:break-all; color:var(--link); text-decoration: underline; cursor:pointer;
+    }
+    .flag{
+      width:32px; height:20px; border:1px solid var(--border);
+      display:inline-block; border-radius:2px; object-fit:cover; margin:3px 0 6px;
+    }
+    .subtitle{ font-size:16px; font-weight:700; margin:4px 0 0; }
+    hr{ border:none; border-top:1px solid var(--border); margin:10px 0; }
+
+    .grid{ border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+    .row{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; padding:8px 8px; align-items:center; }
+    .row:nth-child(even){ background:var(--row); }
+    .cell{ display:flex; gap:6px; align-items:baseline; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .k{ font-weight:700; }
+    .v{ color:var(--muted); overflow:hidden; text-overflow:ellipsis; }
+
+    .toggleRow{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 4px 6px; }
+    .toggleLabel{ font-size:13px; color:var(--muted); }
+    .switch{ position:relative; width:44px; height:24px; display:inline-block; }
+    .switch input{ display:none; }
+    .slider{ position:absolute; inset:0; background:#ddd; border-radius:999px; transition:.15s; border:1px solid var(--border); }
+    .slider:before{ content:""; position:absolute; width:18px; height:18px; left:3px; top:2px; background:#fff; border-radius:999px; border:1px solid var(--border); transition:.15s; }
+    .switch input:checked + .slider{ background:#b9d7ff; }
+    .switch input:checked + .slider:before{ transform: translateX(20px); }
+
+    .sectionTitle{ font-weight:700; margin:10px 0 6px; font-size:13px; }
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 10px; border-radius:999px;
+      background:var(--pill); font-size:12px; border:1px solid var(--border);
+    }
+    .dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+    .dot.ok{ background:var(--ok); } .dot.warn{ background:var(--warn); } .dot.bad{ background:var(--bad); }
+
+    .reasons{ margin:8px 0 0; padding-left:16px; color:var(--muted); font-size:12px; }
+    .actions{ display:flex; gap:8px; margin-top:10px; }
+    button{
+      flex:1; padding:8px 10px; border:1px solid var(--border);
+      background:#fff; border-radius:8px; cursor:pointer; font-weight:700; font-size:12px;
+    }
+    button.primary{ background:#0b57d0; color:#fff; border-color:#0b57d0; }
+
+    .providers{ margin-top:10px; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+    .provRow{ display:flex; justify-content:space-between; align-items:center; padding:8px 10px; font-size:12px; border-top:1px solid var(--border); background:#fff; }
+    .provRow:first-child{ border-top:none; }
+    .provLeft{ display:flex; gap:8px; align-items:center; min-width:0; }
+    .provName{ font-weight:700; }
+    .provNote{ color:var(--muted); max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .statusPill{ font-weight:700; border:1px solid var(--border); border-radius:999px; padding:4px 8px; background:#fafafa; white-space:nowrap; }
+
+    .smallLinks{ display:flex; justify-content:space-between; margin-top:8px; font-size:12px; }
+    .smallLinks a{ color:var(--link); text-decoration:none; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div id="domain" class="domain">—</div>
+    <img id="flag" class="flag" alt="flag" style="display:none;">
+    <div class="subtitle">Site Report</div>
+  </div>
+
+  <hr />
+
+  <div class="grid">
+    <div class="row">
+      <div class="cell"><span class="k">Country:</span> <span id="country" class="v">—</span></div>
+</div>
+    <div class="row">
+<div class="cell"><span class="k">Host:</span> <span id="host" class="v">—</span></div>
+    </div>
+  </div>
+
+  <div class="toggleRow">
+    <div class="toggleLabel">Disable protection for this site</div>
+    <label class="switch">
+      <input id="disableToggle" type="checkbox">
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="smallLinks">
+    <a id="open-options" href="#">Settings</a>
+    <a id="open-vt" href="#">Open in VirusTotal</a>
+  </div>
+
+  <div class="sectionTitle">PhishGuard Verdict</div>
+  <div class="pill">
+    <span id="riskDot" class="dot warn"></span>
+    <span id="riskText">Unknown</span>
+  </div>
+
+  <ul id="reasons" class="reasons"></ul>
+
+  <div class="actions">
+    <button id="quick">Quick Check</button>
+    <button id="deepCheck" class="primary">Deep Check</button>
+  </div>
+
+  <div class="sectionTitle">Reputation Providers</div>
+  <div class="providers">
+    <div class="provRow">
+      <div class="provLeft">
+        <span class="provName">VirusTotal</span>
+        <span class="provNote" id="vtNote">—</span>
+      </div>
+      <span class="statusPill" id="vtStatus">—</span>
+    </div>
+    <div class="provRow">
+      <div class="provLeft">
+        <span class="provName">PhishStats</span>
+        <span class="provNote" id="psNote">—</span>
+      </div>
+      <span class="statusPill" id="psStatus">—</span>
+    </div>
+    <div class="provRow">
+      <div class="provLeft">
+        <span class="provName">urlscan.io</span>
+        <span class="provNote" id="usNote">—</span>
+      </div>
+      <span class="statusPill" id="usStatus">—</span>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
