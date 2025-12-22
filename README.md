@@ -1,6 +1,6 @@
-# 🛡️ PhishGuard — Browser Phishing & URL Risk Detector
+# 🛡️ PhishSpectre — Browser Phishing & URL Risk Detector
 
-PhishGuard is a Chrome extension that helps you **identify phishing and suspicious websites** while you browse. It uses **URL heuristics + risk scoring** and can optionally run **reputation checks** (VirusTotal / PhishStats / urlscan.io) to give you a quick, understandable verdict.
+PhishSpectre is a Chrome extension that helps you **identify phishing and suspicious websites** while you browse. It uses **URL heuristics + risk scoring** and can optionally run **reputation checks** (VirusTotal / PhishStats / urlscan.io) to give you a quick, understandable verdict.
 
 ---
 
@@ -20,7 +20,7 @@ PhishGuard is a Chrome extension that helps you **identify phishing and suspicio
 
 ## 🧠 How It Works (High Level)
 
-PhishGuard evaluates the current URL using signals like:
+PhishSpectre evaluates the current URL using signals like:
 
 - suspicious domain patterns (many subdomains, too long, high-entropy)
 - punycode / homoglyph indicators (`xn--`)
@@ -41,7 +41,7 @@ If enabled, it can also query online services for known malicious URLs.
 4. Click **Load unpacked**
 5. Select the project folder that contains `manifest.json`
 
-✅ PhishGuard should now appear in your extensions toolbar.
+✅ PhishSpectre should now appear in your extensions toolbar.
 
 ---
 
@@ -67,8 +67,8 @@ Some reputation providers require keys:
 
 ## 🧪 Usage
 
-- Browse normally — PhishGuard runs automatically.
-- Click the **PhishGuard icon** to view the **Site Report**:
+- Browse normally — PhishSpectre runs automatically.
+- Click the **PhishSpectre icon** to view the **Site Report**:
   - Verdict + score
   - Reasons and detected indicators
   - Run **Quick Check** or **Deep Check**
@@ -79,7 +79,7 @@ Some reputation providers require keys:
 
 ## 🔐 Privacy
 
-- PhishGuard does **not** read or store your passwords or form inputs.
+- PhishSpectre does **not** read or store your passwords or form inputs.
 - If **Deep Check** is enabled, the extension may send the **URL/domain** to selected reputation services to determine if it is malicious.
 
 ---
@@ -96,7 +96,7 @@ Some reputation providers require keys:
 
 ## 🚧 Disclaimer
 
-PhishGuard provides **risk indicators**, not a guarantee. Always verify:
+PhishSpectre provides **risk indicators**, not a guarantee. Always verify:
 - the domain spelling
 - HTTPS certificate details
 - suspicious login prompts / urgency language
