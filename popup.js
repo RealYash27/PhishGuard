@@ -201,17 +201,20 @@ async function manualScan(url) {
   });
 }
 
-// ---------- QR scan (BarcodeDetector, native to Chrome) ----------
+// ---------- QR scan (jsQR — works on every platform, including Windows) ----------
 async function decodeQrFromFile(file) {
-  if (!("BarcodeDetector" in window)) {
-    return { error: "QR scanning not supported in this browser version." };
+  if (typeof jsQR !== "function") {
+    return { error: "QR decoder failed to load." };
   }
   try {
     const bitmap = await createImageBitmap(file);
-    const detector = new BarcodeDetector({ formats: ["qr_code"] });
-    const codes = await detector.detect(bitmap);
-    if (!codes.length) return { error: "No QR code found in image." };
-    return { value: codes[0].rawValue };
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(bitmap, 0, 0);
+    const img = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
+    const code = jsQR(img.data, img.width, img.height);
+    if (!code || !code.data) return { error: "No QR code found in image." };
+    return { value: code.data };
   } catch (e) {
     return { error: "Failed to decode QR: " + (e.message || e) };
   }
@@ -248,7 +251,10 @@ function renderHistory(history) {
   wrap.innerHTML = history.slice(0, 10).map(h => {
     const cls = h.severity === "red" ? "red" : h.severity === "yellow" ? "yellow" : "green";
     const label = h.severity === "red" ? "High" : h.severity === "yellow" ? "Susp" : "Safe";
-    return `<div class="h"><span class="host" title="${escapeAttr(h.url || h.host || "")}">${escapeHtml(h.host || h.url || "—")}</span><span class="badge ${cls}">${label}</span></div>`;
+    const primary = h.download
+      ? `⬇ ${escapeHtml(h.filename || "download")}`
+      : escapeHtml(h.host || h.url || "—");
+    return `<div class="h"><span class="host" title="${escapeAttr(h.url || h.host || "")}">${primary}</span><span class="badge ${cls}">${label}</span></div>`;
   }).join("");
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }

@@ -5,6 +5,9 @@ const $ = (id) => document.getElementById(id);
 const SETTINGS_DEFAULTS = {
   onlineDeepChecksEnabled: false,
   notificationsEnabled: true,
+  downloadScanEnabled: false,
+  downloadDeepScanEnabled: false,
+  downloadAutoBlockMalicious: true,
   vtKey: "",
   urlscanKey: "",
   gsbKey: ""
@@ -14,6 +17,9 @@ async function loadSettings() {
   const d = await chrome.storage.sync.get(SETTINGS_DEFAULTS);
   $("online").checked = !!d.onlineDeepChecksEnabled;
   $("notif").checked = !!d.notificationsEnabled;
+  $("dlScan").checked = !!d.downloadScanEnabled;
+  $("dlAutoBlock").checked = !!d.downloadAutoBlockMalicious;
+  $("dlDeep").checked = !!d.downloadDeepScanEnabled;
   $("vt").value = d.vtKey || "";
   $("us").value = d.urlscanKey || "";
   $("gsb").value = d.gsbKey || "";
@@ -22,6 +28,9 @@ async function saveSettings() {
   await chrome.storage.sync.set({
     onlineDeepChecksEnabled: $("online").checked,
     notificationsEnabled: $("notif").checked,
+    downloadScanEnabled: $("dlScan").checked,
+    downloadAutoBlockMalicious: $("dlAutoBlock").checked,
+    downloadDeepScanEnabled: $("dlDeep").checked,
     vtKey: $("vt").value.trim(),
     urlscanKey: $("us").value.trim(),
     gsbKey: $("gsb").value.trim()
@@ -126,11 +135,19 @@ function renderHistory(history, filter = "") {
   wrap.innerHTML = filtered.slice(0, 100).map(h => {
     const reasons = (h.reasons || []).slice(0, 3).map(r => `<li>${escapeHtml(r)}</li>`).join("");
     const score = typeof h.score === "number" ? h.score.toFixed(2) : "—";
+    const primary = h.download
+      ? `${escapeHtml(h.filename || "download")} <span style="color:#666;font-weight:400">from ${escapeHtml(h.host || h.url || "")}</span>`
+      : escapeHtml(h.host || h.url || "—");
+    const tags = [
+      h.download ? "download" : null,
+      h.deep ? "deep" : null,
+      h.manual ? "manual" : null
+    ].filter(Boolean).join(" · ");
     return `<div class="item" style="display:block;padding:10px 8px">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
         <div style="min-width:0;flex:1">
-          <div class="host" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(h.host || h.url || "—")}</div>
-          <div style="font-size:11px;color:#666">${fmtTime(h.ts)} · score ${score}${h.deep ? " · deep" : ""}${h.manual ? " · manual" : ""}</div>
+          <div class="host" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${primary}</div>
+          <div style="font-size:11px;color:#666">${fmtTime(h.ts)} · score ${score}${tags ? " · " + tags : ""}</div>
         </div>
         ${severityPill(h.severity)}
       </div>

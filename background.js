@@ -20,6 +20,9 @@ async function getSettings() {
   return await chrome.storage.sync.get({
     onlineDeepChecksEnabled: false,
     notificationsEnabled: true,
+    downloadScanEnabled: false,
+    downloadDeepScanEnabled: false,
+    downloadAutoBlockMalicious: true,
     vtKey: "",
     urlscanKey: "",
     gsbKey: ""
@@ -513,6 +516,222 @@ async function handleManualUrl(url) {
     reasons, deep: false, sources: [], ts: Date.now(), manual: true
   });
   return { score: sc, severity: sev, reasons, host: f.host, protocol: f.protocol, typo };
+}
+
+// ---------- Download interception ----------
+// Pauses every started download, scans the source URL with heuristics + (if a
+// VirusTotal key is configured) the VT URL endpoint, then prompts the user to
+// allow or cancel via a desktop notification with action buttons.
+//
+// Optional "deep scan" path: re-fetch the file via service-worker `fetch()`
+// and upload to VT /files for content analysis. Works for files <32 MB on
+// public URLs (i.e. no auth/cookies/streaming).
+
+const RISKY_EXT = new Set([
+  "exe","scr","bat","cmd","com","pif","msi","msp","vbs","vbe","jse","ws","wsf",
+  "wsh","ps1","reg","jar","apk","dmg","app","sh","run","hta","lnk","gadget","cpl"
+]);
+function fileExt(filename) {
+  const m = String(filename || "").match(/\.([a-z0-9]+)$/i);
+  return m ? m[1].toLowerCase() : "";
+}
+function basename(p) {
+  const s = String(p || "").replace(/\\/g, "/");
+  const idx = s.lastIndexOf("/");
+  return idx >= 0 ? s.slice(idx + 1) : s;
+}
+function shortName(name, max = 60) {
+  const s = String(name || "");
+  return s.length > max ? s.slice(0, max - 1) + "…" : s;
+}
+
+// notifId -> { downloadId, severity, decided }
+const PENDING_DL = {};
+
+async function checkVirusTotalFile(buf, key) {
+  // Upload file content to VirusTotal and poll for analysis result.
+  if (!key) return null;
+  try {
+    if (buf.byteLength > 32 * 1024 * 1024) {
+      return { hit: false, reason: "File too large for VirusTotal direct upload (>32 MB)" };
+    }
+    const form = new FormData();
+    form.append("file", new Blob([buf]), "upload.bin");
+    const upload = await fetch("https://www.virustotal.com/api/v3/files", {
+      method: "POST",
+      headers: { "x-apikey": key },
+      body: form
+    });
+    if (!upload.ok) return { hit: false, reason: `VT upload error (${upload.status})` };
+    const upJson = await upload.json();
+    const analysisId = upJson?.data?.id;
+    if (!analysisId) return { hit: false, reason: "VT upload returned no analysis id" };
+
+    // Poll up to ~45s
+    for (let i = 0; i < 9; i++) {
+      await new Promise(r => setTimeout(r, 5000));
+      const r = await fetch(`https://www.virustotal.com/api/v3/analyses/${encodeURIComponent(analysisId)}`, {
+        headers: { "x-apikey": key }
+      });
+      if (!r.ok) continue;
+      const j = await r.json();
+      const status = j?.data?.attributes?.status;
+      if (status !== "completed") continue;
+      const stats = j?.data?.attributes?.stats || {};
+      const malicious = (stats.malicious || 0) + (stats.suspicious || 0);
+      if (malicious > 0) return { hit: true, reason: `VT file scan: flagged by ${malicious} vendors`, meta: stats };
+      return { hit: false, reason: "VT file scan: clean", meta: stats };
+    }
+    return { hit: false, reason: "VT file scan: still analyzing (timeout)" };
+  } catch (e) {
+    console.warn("VT file scan error", e);
+    return null;
+  }
+}
+
+async function scanDownloadFileContent(url, key) {
+  // Re-fetch the URL and upload to VT. Best-effort.
+  try {
+    const r = await fetch(url, { credentials: "omit" });
+    if (!r.ok) return { hit: false, reason: `Could not re-fetch for file scan (HTTP ${r.status})` };
+    const buf = await r.arrayBuffer();
+    if (buf.byteLength === 0) return { hit: false, reason: "Empty download" };
+    return await checkVirusTotalFile(buf, key);
+  } catch (e) {
+    return { hit: false, reason: "File re-fetch failed: " + (e.message || e) };
+  }
+}
+
+async function handleDownloadCreated(item) {
+  const settings = await getSettings();
+  if (!settings.downloadScanEnabled) return;
+
+  // Ignore our own programmatic downloads (e.g. allowlist export blob:).
+  const url = item.finalUrl || item.url || "";
+  if (!/^https?:\/\//i.test(url)) return;
+  if (item.state !== "in_progress") return;
+
+  // Pause as fast as possible.
+  try { await chrome.downloads.pause(item.id); } catch (e) { /* may already be done */ }
+
+  // Heuristics on URL + filename.
+  const features = computeUrlFeatures(url);
+  const typo = features ? typosquatCheck(features.host) : null;
+  const heur = features ? heuristicScore(features, null, typo) : 0;
+  const filename = basename(item.filename || item.url || "");
+  const ext = fileExt(filename);
+  const riskyType = RISKY_EXT.has(ext);
+
+  const reasons = [];
+  if (typo) reasons.push(typo.contains
+    ? `Source domain looks like brand "${typo.brand}" (impersonation)`
+    : `Source domain similar to "${typo.brand}" (typosquatting)`);
+  if (features?.has_punycode) reasons.push("Punycode source domain");
+  if (features?.ip_host) reasons.push("Source URL uses IP address");
+  if (features?.http_not_https) reasons.push("Download served over HTTP");
+  if (riskyType) reasons.push(`Risky file type (.${ext})`);
+
+  // VirusTotal URL scan (uses the same flow as Deep Check).
+  let vt = null;
+  if (settings.vtKey) {
+    vt = await withTimeout(checkVirusTotal(url, settings.vtKey), 8000);
+    if (vt?.hit) reasons.push(vt.reason);
+  }
+
+  // Optional deep file-content scan (slow path, opt-in).
+  let fileVt = null;
+  if (settings.downloadDeepScanEnabled && settings.vtKey) {
+    fileVt = await withTimeout(scanDownloadFileContent(url, settings.vtKey), 60000);
+    if (fileVt?.hit) reasons.push(fileVt.reason);
+  }
+
+  // Decide severity.
+  let severity = "green";
+  if (vt?.hit || fileVt?.hit) severity = "red";
+  else if (heur >= 0.6 || (riskyType && heur >= 0.4)) severity = "red";
+  else if (heur >= 0.4 || riskyType || (features?.http_not_https && /\.(exe|msi|apk|dmg)$/i.test(filename))) severity = "yellow";
+
+  // Track in scan history.
+  appendHistory({
+    url, host: features?.host || "", score: heur, severity,
+    reasons: reasons.slice(0, 6),
+    deep: !!fileVt, sources: [
+      ...(vt?.hit ? ["VirusTotal-URL"] : []),
+      ...(fileVt?.hit ? ["VirusTotal-File"] : [])
+    ],
+    ts: Date.now(), download: true, filename, downloadId: item.id
+  });
+
+  // Auto-allow safe downloads silently.
+  if (severity === "green") {
+    try { await chrome.downloads.resume(item.id); } catch {}
+    return;
+  }
+
+  // Auto-cancel reds if user opted in.
+  if (severity === "red" && settings.downloadAutoBlockMalicious) {
+    try { await chrome.downloads.cancel(item.id); } catch {}
+    chrome.notifications.create({
+      type: "basic",
+      iconUrl: chrome.runtime.getURL("assets/cyber.png"),
+      title: "PhishSpectre — Download blocked",
+      message: `${shortName(filename)}\n${reasons.slice(0, 2).join(" · ") || "Flagged as malicious"}`,
+      priority: 2
+    });
+    return;
+  }
+
+  // Otherwise: prompt user via notification with Allow/Cancel buttons.
+  const notifId = `phishspectre-dl-${item.id}-${Date.now()}`;
+  PENDING_DL[notifId] = { downloadId: item.id, severity, decided: false };
+  const title = severity === "red" ? "⚠ Dangerous download paused" : "Suspicious download paused";
+  chrome.notifications.create(notifId, {
+    type: "basic",
+    iconUrl: chrome.runtime.getURL("assets/cyber.png"),
+    title,
+    message: `${shortName(filename)}\n${reasons.slice(0, 3).join(" · ") || "Suspicious signals on the source URL"}`,
+    priority: severity === "red" ? 2 : 1,
+    buttons: [{ title: "Allow download" }, { title: "Cancel download" }],
+    requireInteraction: true
+  }, (id) => { /* notification id is the one we passed */ });
+}
+
+function resolveDownloadDecision(notifId, allow) {
+  const pending = PENDING_DL[notifId];
+  if (!pending || pending.decided) return;
+  pending.decided = true;
+  if (allow) {
+    chrome.downloads.resume(pending.downloadId).catch(() => {});
+  } else {
+    chrome.downloads.cancel(pending.downloadId).catch(() => {});
+  }
+  delete PENDING_DL[notifId];
+  chrome.notifications.clear(notifId);
+}
+
+try {
+  chrome.downloads.onCreated.addListener((item) => {
+    handleDownloadCreated(item).catch(e => console.warn("download scan error", e));
+  });
+  chrome.notifications.onButtonClicked.addListener((notifId, btnIndex) => {
+    if (!notifId.startsWith("phishspectre-dl-")) return;
+    resolveDownloadDecision(notifId, btnIndex === 0);
+  });
+  chrome.notifications.onClosed.addListener((notifId, byUser) => {
+    if (!notifId.startsWith("phishspectre-dl-")) return;
+    // If user dismissed without choosing, default to keeping the download paused.
+    // We leave the notification entry around briefly so the popup can offer a manual decision.
+    // Auto-cancel after a long delay to avoid leaking paused downloads.
+    const pending = PENDING_DL[notifId];
+    if (pending && !pending.decided && byUser) {
+      setTimeout(() => {
+        const stillPending = PENDING_DL[notifId];
+        if (stillPending && !stillPending.decided) resolveDownloadDecision(notifId, false);
+      }, 60000);
+    }
+  });
+} catch (e) {
+  console.warn("download listener registration failed (permission missing?)", e);
 }
 
 // ---------- Message router ----------

@@ -52,6 +52,24 @@
     <label for="notif">Show desktop notifications when a high-risk page is detected</label>
   </div>
 
+  <h2>Download Scanning</h2>
+  <div class="switch">
+    <input id="dlScan" type="checkbox"/>
+    <label for="dlScan">Pause every download and scan the source URL before completing</label>
+  </div>
+  <p class="small">Each new download is paused for ~1–2 seconds while PhishSpectre runs heuristics + (if a VirusTotal key is set) a VT URL lookup. Safe downloads auto-resume; suspicious ones prompt you with Allow / Cancel buttons in a desktop notification.</p>
+
+  <div class="switch" style="margin-top:10px">
+    <input id="dlAutoBlock" type="checkbox"/>
+    <label for="dlAutoBlock">Auto-cancel downloads flagged as malicious (no prompt)</label>
+  </div>
+
+  <div class="switch" style="margin-top:10px">
+    <input id="dlDeep" type="checkbox"/>
+    <label for="dlDeep">Deep scan: re-fetch the file and upload it to VirusTotal for content analysis (slow, requires VT key, max 32 MB)</label>
+  </div>
+  <p class="small">Adds ~30–60 seconds to every download while VT analyzes the actual file bytes. Only works for direct public URLs (no auth, no streaming).</p>
+
   <label>VirusTotal API key</label>
   <div class="row"><input id="vt" type="text" placeholder="Paste VirusTotal API key"/></div>
 
