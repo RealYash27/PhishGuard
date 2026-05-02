@@ -1,36 +1,93 @@
-
 <!doctype html>
 <html>
 <head>
 <meta charset="utf-8"/>
-<title>PhishGuard Settings</title>
+<title>PhishSpectre Settings</title>
 <style>
-  body{font-family:Inter,system-ui,Arial,sans-serif;margin:24px;max-width:720px}
-  h1{font-size:20px}
-  label{display:block;margin:12px 0 6px}
-  input[type=text]{width:520px;padding:8px;border-radius:6px;border:1px solid #ccc}
-  .row{display:flex;align-items:center;gap:12px}
-  .save{margin-top:16px;padding:8px 12px;background:#1677ff;border:0;color:#fff;border-radius:6px;cursor:pointer}
-  .ok{color:#52c41a;margin-left:8px;display:none}
-  p.small{font-size:12px;color:#666}
+  :root{
+    --border:#cfcfcf; --text:#111; --muted:#555; --accent:#1677ff;
+    --row:#f6f6f6; --bad:#b00020; --ok:#1b7f3a;
+  }
+  body{font-family:Inter,system-ui,Arial,sans-serif;margin:24px;max-width:820px;color:var(--text)}
+  h1{font-size:22px;margin:0 0 4px}
+  h2{font-size:15px;margin:24px 0 8px;border-bottom:1px solid var(--border);padding-bottom:4px}
+  .tag{font-size:11px;background:#eef2ff;color:#1c3faa;padding:2px 6px;border-radius:4px;margin-left:6px;vertical-align:middle}
+  label{display:block;margin:12px 0 6px;font-weight:600}
+  input[type=text]{width:520px;padding:8px;border-radius:6px;border:1px solid #ccc;font-family:inherit}
+  .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .save{margin-top:18px;padding:9px 16px;background:var(--accent);border:0;color:#fff;border-radius:6px;cursor:pointer;font-weight:600}
+  .ok{color:var(--ok);margin-left:8px;display:none;font-weight:600}
+  p.small{font-size:12px;color:var(--muted);margin:4px 0 0}
   .switch{display:flex;align-items:center;gap:8px}
+  .listwrap{border:1px solid var(--border);border-radius:8px;padding:8px;max-height:260px;overflow:auto;background:#fff}
+  .listwrap.empty{color:var(--muted);font-style:italic;padding:14px;text-align:center}
+  .item{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-radius:4px}
+  .item:nth-child(even){background:var(--row)}
+  .item .host{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+  .iconbtn{background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--muted);cursor:pointer;padding:2px 8px;font-size:12px}
+  .iconbtn:hover{color:var(--bad);border-color:var(--bad)}
+  .toolbar{display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap}
+  .toolbar input{padding:6px 8px;border-radius:4px;border:1px solid var(--border);width:240px}
+  .btn-secondary{background:#fff;border:1px solid var(--border);border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px}
+  .stat{background:var(--row);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center}
+  .stat .num{font-size:22px;font-weight:700}
+  .stat .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+  .reasonsList{margin:6px 0 0;padding-left:18px;font-size:12px;color:var(--muted)}
 </style>
 </head>
 <body>
-  <h1>PhishGuard Settings</h1>
+  <h1>PhishSpectre Settings</h1>
+  <p class="small">Version 0.7.0 — configure online checks, manage allowlist, and view scan history.</p>
+
+  <h2>Online Reputation Checks</h2>
   <div class="switch">
     <input id="online" type="checkbox"/>
-    <label for="online">Enable online Deep Check (GSB / VirusTotal / PhishStats / urlscan)</label>
+    <label for="online">Enable Deep Check (queries VirusTotal, PhishStats, urlscan.io, Google Safe Browsing)</label>
   </div>
-  <p class="small">When enabled, the extension may query third-party reputation services for the current URL. No form inputs are collected.</p>
+  <p class="small">When enabled, the extension may send the URL to selected reputation services. No form inputs are collected.</p>
+
+  <div class="switch" style="margin-top:10px">
+    <input id="notif" type="checkbox"/>
+    <label for="notif">Show desktop notifications when a high-risk page is detected</label>
+  </div>
 
   <label>VirusTotal API key</label>
   <div class="row"><input id="vt" type="text" placeholder="Paste VirusTotal API key"/></div>
 
-  <label>urlscan.io API key (optional)</label>
-  <div class="row"><input id="us" type="text" placeholder="Paste urlscan API key"/></div>
+  <label>urlscan.io API key <span class="tag">optional</span></label>
+  <div class="row"><input id="us" type="text" placeholder="Paste urlscan.io API key"/></div>
 
-  <button class="save" id="save">Save</button><span class="ok" id="ok">Saved ✓</span>
+  <label>Google Safe Browsing API key <span class="tag">optional</span></label>
+  <div class="row"><input id="gsb" type="text" placeholder="Paste Google Safe Browsing v4 API key"/></div>
+  <p class="small">Create one at console.cloud.google.com → enable the Safe Browsing API.</p>
+
+  <button class="save" id="save">Save settings</button><span class="ok" id="ok">Saved ✓</span>
+
+  <h2>Allowlist <span class="tag" id="allowCount">0</span></h2>
+  <p class="small">Sites where PhishSpectre is disabled. Toggle from the popup, or remove individual entries here.</p>
+  <div class="toolbar">
+    <input id="allowFilter" type="text" placeholder="Filter by host"/>
+    <button class="btn-secondary" id="allowExport">Export JSON</button>
+    <button class="btn-secondary" id="allowImportBtn">Import JSON</button>
+    <input id="allowImportFile" type="file" accept="application/json" style="display:none"/>
+    <button class="btn-secondary" id="allowClear">Clear all</button>
+  </div>
+  <div id="allowList" class="listwrap empty">No allowlisted sites yet.</div>
+
+  <h2>Scan History <span class="tag" id="histCount">0</span></h2>
+  <div class="stats" id="statsRow">
+    <div class="stat"><div class="num" id="stTotal">0</div><div class="lbl">Total scans</div></div>
+    <div class="stat"><div class="num" id="stSafe">0</div><div class="lbl">Safe</div></div>
+    <div class="stat"><div class="num" id="stSusp">0</div><div class="lbl">Suspicious</div></div>
+    <div class="stat"><div class="num" id="stRed">0</div><div class="lbl">High risk</div></div>
+  </div>
+  <div class="toolbar">
+    <input id="histFilter" type="text" placeholder="Filter history"/>
+    <button class="btn-secondary" id="histClear">Clear history</button>
+  </div>
+  <div id="histList" class="listwrap empty">No scans yet.</div>
+
   <script src="options.js"></script>
 </body>
 </html>

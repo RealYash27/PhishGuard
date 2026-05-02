@@ -3,57 +3,49 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>PhishGuard</title>
+  <title>PhishSpectre</title>
   <style>
     :root{
-      --border:#cfcfcf;
-      --text:#111;
-      --muted:#444;
-      --bg:#fff;
-      --row:#f6f6f6;
-      --ok:#1b7f3a;
-      --warn:#b8860b;
-      --bad:#b00020;
-      --pill:#efefef;
-      --link:#0b57d0;
+      --border:#cfcfcf; --text:#111; --muted:#444; --bg:#fff;
+      --row:#f6f6f6; --ok:#1b7f3a; --warn:#b8860b; --bad:#b00020;
+      --pill:#efefef; --link:#0b57d0;
     }
     body{
-      margin:0;
-      padding:12px 12px 10px;
-      width:340px;
+      margin:0; padding:12px 12px 10px; width:360px;
       font-family: Inter, system-ui, Arial, Helvetica, sans-serif;
-      background:var(--bg);
-      color:var(--text);
+      background:var(--bg); color:var(--text);
     }
-    .top{ text-align:center; padding:6px 6px 10px; }
+    .top{ text-align:center; padding:6px 6px 8px; }
     .domain{
-      font-size:20px; font-weight:700; margin:2px 0 6px;
+      font-size:18px; font-weight:700; margin:2px 0 4px;
       word-break:break-all; color:var(--link); text-decoration: underline; cursor:pointer;
     }
     .flag{
-      width:32px; height:20px; border:1px solid var(--border);
-      display:inline-block; border-radius:2px; object-fit:cover; margin:3px 0 6px;
+      width:28px; height:18px; border:1px solid var(--border);
+      display:inline-block; border-radius:2px; object-fit:cover; margin:2px 0 6px;
     }
-    .subtitle{ font-size:16px; font-weight:700; margin:4px 0 0; }
-    hr{ border:none; border-top:1px solid var(--border); margin:10px 0; }
+    .subtitle{ font-size:14px; font-weight:700; margin:2px 0 0; }
+    hr{ border:none; border-top:1px solid var(--border); margin:8px 0; }
 
     .grid{ border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
-    .row{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; padding:8px 8px; align-items:center; }
+    .row{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; padding:7px 8px; align-items:center; }
     .row:nth-child(even){ background:var(--row); }
-    .cell{ display:flex; gap:6px; align-items:baseline; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .cell{ display:flex; gap:6px; align-items:baseline; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12px; }
     .k{ font-weight:700; }
     .v{ color:var(--muted); overflow:hidden; text-overflow:ellipsis; }
+    .v.https{ color:var(--ok); font-weight:700; }
+    .v.http{ color:var(--bad); font-weight:700; }
 
-    .toggleRow{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 4px 6px; }
-    .toggleLabel{ font-size:13px; color:var(--muted); }
-    .switch{ position:relative; width:44px; height:24px; display:inline-block; }
+    .toggleRow{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 4px 4px; }
+    .toggleLabel{ font-size:12px; color:var(--muted); }
+    .switch{ position:relative; width:42px; height:22px; display:inline-block; }
     .switch input{ display:none; }
     .slider{ position:absolute; inset:0; background:#ddd; border-radius:999px; transition:.15s; border:1px solid var(--border); }
-    .slider:before{ content:""; position:absolute; width:18px; height:18px; left:3px; top:2px; background:#fff; border-radius:999px; border:1px solid var(--border); transition:.15s; }
+    .slider:before{ content:""; position:absolute; width:16px; height:16px; left:3px; top:2px; background:#fff; border-radius:999px; border:1px solid var(--border); transition:.15s; }
     .switch input:checked + .slider{ background:#b9d7ff; }
     .switch input:checked + .slider:before{ transform: translateX(20px); }
 
-    .sectionTitle{ font-weight:700; margin:10px 0 6px; font-size:13px; }
+    .sectionTitle{ font-weight:700; margin:10px 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:#333; }
     .pill{
       display:inline-flex; align-items:center; gap:8px;
       padding:6px 10px; border-radius:999px;
@@ -63,23 +55,54 @@
     .dot.ok{ background:var(--ok); } .dot.warn{ background:var(--warn); } .dot.bad{ background:var(--bad); }
 
     .reasons{ margin:8px 0 0; padding-left:16px; color:var(--muted); font-size:12px; }
+    .typoBox{ display:none; background:#fff4f4; border:1px solid #f5b3b3; color:#8b1e1e; border-radius:6px; padding:6px 8px; margin-top:8px; font-size:12px; }
+    .typoBox.show{ display:block; }
+
     .actions{ display:flex; gap:8px; margin-top:10px; }
     button{
       flex:1; padding:8px 10px; border:1px solid var(--border);
       background:#fff; border-radius:8px; cursor:pointer; font-weight:700; font-size:12px;
     }
     button.primary{ background:#0b57d0; color:#fff; border-color:#0b57d0; }
+    button:disabled{ opacity:.6; cursor:default; }
 
-    .providers{ margin-top:10px; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
-    .provRow{ display:flex; justify-content:space-between; align-items:center; padding:8px 10px; font-size:12px; border-top:1px solid var(--border); background:#fff; }
+    .providers{ margin-top:8px; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+    .provRow{ display:flex; justify-content:space-between; align-items:center; padding:7px 10px; font-size:12px; border-top:1px solid var(--border); background:#fff; }
     .provRow:first-child{ border-top:none; }
     .provLeft{ display:flex; gap:8px; align-items:center; min-width:0; }
     .provName{ font-weight:700; }
     .provNote{ color:var(--muted); max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .statusPill{ font-weight:700; border:1px solid var(--border); border-radius:999px; padding:4px 8px; background:#fafafa; white-space:nowrap; }
+    .statusPill{ font-weight:700; border:1px solid var(--border); border-radius:999px; padding:3px 8px; background:#fafafa; white-space:nowrap; font-size:11px; }
 
     .smallLinks{ display:flex; justify-content:space-between; margin-top:8px; font-size:12px; }
-    .smallLinks a{ color:var(--link); text-decoration:none; }
+    .smallLinks a{ color:var(--link); text-decoration:none; cursor:pointer; }
+
+    details{ margin-top:10px; border:1px solid var(--border); border-radius:8px; overflow:hidden; background:#fff; }
+    details summary{ padding:8px 10px; cursor:pointer; font-weight:700; font-size:12px; user-select:none; background:var(--row); }
+    details[open] summary{ border-bottom:1px solid var(--border); }
+    details > .body{ padding:8px 10px; }
+
+    .scanInputRow{ display:flex; gap:6px; }
+    .scanInputRow input[type=text]{
+      flex:1; padding:7px 8px; border:1px solid var(--border); border-radius:6px; font-family:inherit; font-size:12px;
+    }
+    .scanResult{ font-size:12px; margin-top:6px; color:var(--muted); }
+    .scanResult.bad{ color:var(--bad); font-weight:700; }
+    .scanResult.warn{ color:var(--warn); font-weight:700; }
+    .scanResult.ok{ color:var(--ok); font-weight:700; }
+    .qrDrop{
+      border:2px dashed var(--border); border-radius:8px; padding:14px; text-align:center;
+      font-size:12px; color:var(--muted); cursor:pointer;
+    }
+    .qrDrop.dragover{ border-color:var(--link); background:#eef4ff; }
+    .historyList{ max-height:180px; overflow:auto; font-size:12px; }
+    .historyList .h{ padding:5px 6px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; gap:6px; }
+    .historyList .h:last-child{ border-bottom:none; }
+    .historyList .h .host{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .badge{ display:inline-block; padding:1px 6px; border-radius:999px; font-size:10px; font-weight:700; }
+    .badge.red{ color:#fff; background:var(--bad); }
+    .badge.yellow{ color:#5a4500; background:#fadb14; }
+    .badge.green{ color:#fff; background:var(--ok); }
   </style>
 </head>
 <body>
@@ -94,9 +117,11 @@
   <div class="grid">
     <div class="row">
       <div class="cell"><span class="k">Country:</span> <span id="country" class="v">—</span></div>
-</div>
+      <div class="cell"><span class="k">HTTPS:</span> <span id="protocol" class="v">—</span></div>
+    </div>
     <div class="row">
-<div class="cell"><span class="k">Host:</span> <span id="host" class="v">—</span></div>
+      <div class="cell"><span class="k">Host:</span> <span id="host" class="v">—</span></div>
+      <div class="cell"><span class="k">Age:</span> <span id="age" class="v">—</span></div>
     </div>
   </div>
 
@@ -109,15 +134,17 @@
   </div>
 
   <div class="smallLinks">
-    <a id="open-options" href="#">Settings</a>
-    <a id="open-vt" href="#">Open in VirusTotal</a>
+    <a id="open-options">Settings</a>
+    <a id="open-vt">Open in VirusTotal</a>
   </div>
 
-  <div class="sectionTitle">PhishGuard Verdict</div>
+  <div class="sectionTitle">PhishSpectre Verdict</div>
   <div class="pill">
     <span id="riskDot" class="dot warn"></span>
     <span id="riskText">Unknown</span>
   </div>
+
+  <div id="typoBox" class="typoBox"></div>
 
   <ul id="reasons" class="reasons"></ul>
 
@@ -126,30 +153,61 @@
     <button id="deepCheck" class="primary">Deep Check</button>
   </div>
 
+  <div class="actions" style="margin-top:6px">
+    <button id="trustFavicon" title="Save this site's favicon as a known brand. Future sites with the same favicon but a different domain will be flagged as impersonation.">Trust this site's favicon</button>
+  </div>
+  <div id="trustResult" class="scanResult" style="margin-top:4px"></div>
+
   <div class="sectionTitle">Reputation Providers</div>
   <div class="providers">
     <div class="provRow">
-      <div class="provLeft">
-        <span class="provName">VirusTotal</span>
-        <span class="provNote" id="vtNote">—</span>
-      </div>
+      <div class="provLeft"><span class="provName">VirusTotal</span><span class="provNote" id="vtNote">—</span></div>
       <span class="statusPill" id="vtStatus">—</span>
     </div>
     <div class="provRow">
-      <div class="provLeft">
-        <span class="provName">PhishStats</span>
-        <span class="provNote" id="psNote">—</span>
-      </div>
+      <div class="provLeft"><span class="provName">PhishStats</span><span class="provNote" id="psNote">—</span></div>
       <span class="statusPill" id="psStatus">—</span>
     </div>
     <div class="provRow">
-      <div class="provLeft">
-        <span class="provName">urlscan.io</span>
-        <span class="provNote" id="usNote">—</span>
-      </div>
+      <div class="provLeft"><span class="provName">urlscan.io</span><span class="provNote" id="usNote">—</span></div>
       <span class="statusPill" id="usStatus">—</span>
     </div>
+    <div class="provRow">
+      <div class="provLeft"><span class="provName">Safe Browsing</span><span class="provNote" id="gsbNote">—</span></div>
+      <span class="statusPill" id="gsbStatus">—</span>
+    </div>
   </div>
+
+  <details>
+    <summary>Scan a URL</summary>
+    <div class="body">
+      <div class="scanInputRow">
+        <input id="manualUrl" type="text" placeholder="https://example.com/path"/>
+        <button id="manualScan" class="primary" style="flex:0 0 auto">Scan</button>
+      </div>
+      <div id="manualResult" class="scanResult">Paste a link from email/chat to check it before clicking.</div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Scan a QR code (image)</summary>
+    <div class="body">
+      <input id="qrFile" type="file" accept="image/*" style="display:none"/>
+      <div id="qrDrop" class="qrDrop">Click or drop a QR image here</div>
+      <div id="qrResult" class="scanResult"></div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Recent detections</summary>
+    <div class="body">
+      <div id="historyList" class="historyList">Loading…</div>
+      <div class="smallLinks" style="margin-top:6px">
+        <a id="open-history">View all in Settings</a>
+        <span></span>
+      </div>
+    </div>
+  </details>
 
   <script src="popup.js"></script>
 </body>
